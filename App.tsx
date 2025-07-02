@@ -1,10 +1,12 @@
 import { View, Text } from 'react-native'
 import React from 'react'
-import Dwnld from './src/screens/Dwnld'
+import Navigation from './src/navigation/NavigationContainer'
+import ScanID from './src/screens/ScanID'
 
 const App = () => {
   return (
-    <Dwnld/>
+    <Navigation/>
+    // <ScanID/>
   )
 }
 
