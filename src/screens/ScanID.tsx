@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   View,
@@ -7,28 +7,42 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  ToastAndroid,
+  Vibration,
 } from 'react-native';
 import { Camera } from 'react-native-camera-kit';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-
-type Person = {
-  name: string;
-  id: string;
-};
-console.log('Camera: ', Camera);
+import { usePeople } from '../context/PeopleContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 const ScanID = () => {
   const [hasPermission, setHasPermission] = useState(false);
   const [torch, setTorch] = useState<'on' | 'off'>('off');
-  const [scanned, setScanned] = useState<boolean>(false);
-  const [zoomed, setZoomed] = useState<1| 2.5>(1);
+  const lastScannedIDRef = useRef<string | null>(null);
+  const [zoomed, setZoomed] = useState<1 | 2.5>(1);
+  const { people } = usePeople();
 
-  const data: Person[] = [
-    { name: 'raju', id: '1001' },
-    { name: 'taju', id: '1002' },
-    { name: 'kaju', id: '1003' },
-    { name: 'paju', id: '1004' },
-  ];
+  //Toast box
+  const showToast = (message: string) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Notice', message);
+    }
+  };
+
+  //bug resolved: scanning again after downloading the people.txt file but not showing the result.
+  useFocusEffect(
+    React.useCallback(() => {
+      lastScannedIDRef.current = null;
+    }, []),
+  );
+
+  //Haptic Feedback
+  const triggerHaptic = () => {
+    // this is milliseconds
+    Vibration.vibrate(1000);
+  };
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -46,24 +60,32 @@ const ScanID = () => {
   }, []);
 
   const checkIDAndShowName = (id: string) => {
-    const person = data.find(p => p.id === id);
+    if (!people || people.length === 0) {
+      showToast('⚠️ No data loaded. Please download first.');
+
+      return;
+    }
+    const person = people.find(p => p.id === id);
     if (person) {
-      Alert.alert('Match Found', `Name: ${person.name}`);
+      triggerHaptic();
+
+      showToast(`✅ Match: ${person.name}`);
     } else {
-      Alert.alert('No Match', `No match found for ID: ${id}`);
+      showToast(`❌ No match for ID: ${id}\nHave you downloaded the list?`);
     }
   };
 
   const onReadCode = (event: { nativeEvent: { codeStringValue: string } }) => {
-    if (scanned) return;
+    const scannedID = event.nativeEvent.codeStringValue?.trim();
 
-    const scannedID = event.nativeEvent.codeStringValue;
-    setScanned(true);
+    if (!scannedID || scannedID === lastScannedIDRef.current) return;
+
+    lastScannedIDRef.current = scannedID;
+
     checkIDAndShowName(scannedID);
-    // console.log(scannedID);
 
     setTimeout(() => {
-      setScanned(false);
+      lastScannedIDRef.current = null;
     }, 2000);
   };
 
@@ -80,24 +102,26 @@ const ScanID = () => {
         laserColor="#9265CE"
         frameColor="#9B9E9C"
         style={styles.cam}
-        focusMode='on'
-        zoomMode='on'
+        focusMode="on"
+        zoomMode="on"
         zoom={zoomed}
         torchMode={torch}
       />
-
       <View style={styles.buttonRow}>
         <TouchableOpacity
           onPress={() => {
             setTorch(prev => (prev === 'on' ? 'off' : 'on'));
           }}
         >
-            <Icon
-              name= {torch==='on' ? "flashlight-on" : "flashlight-off"}
-              size={32}
-              color='#fff'
-              style={[styles.torch, {backgroundColor: torch==="on"? "#9265CE":"#9B9E9C"}]}
-            />
+          <Icon
+            name={torch === 'on' ? 'flashlight-on' : 'flashlight-off'}
+            size={32}
+            color="#fff"
+            style={[
+              styles.torch,
+              { backgroundColor: torch === 'on' ? '#9265CE' : '#9B9E9C' },
+            ]}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => {
@@ -105,10 +129,13 @@ const ScanID = () => {
           }}
         >
           <Icon
-            name= {zoomed === 2.5? "center-focus-strong":"center-focus-weak"}
+            name={zoomed === 2.5 ? 'center-focus-strong' : 'center-focus-weak'}
             size={30}
-            color='#fff'
-            style={[styles.torch, { backgroundColor: zoomed===2.5? "#9265CE":"#9B9E9C" }]}
+            color="#fff"
+            style={[
+              styles.torch,
+              { backgroundColor: zoomed === 2.5 ? '#9265CE' : '#9B9E9C' },
+            ]}
           />
         </TouchableOpacity>
       </View>

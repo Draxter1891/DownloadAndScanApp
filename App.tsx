@@ -1,13 +1,14 @@
-import { View, Text } from 'react-native'
-import React from 'react'
-import Navigation from './src/navigation/NavigationContainer'
-import ScanID from './src/screens/ScanID'
+import React from 'react';
+import Navigation from './src/navigation/NavigationContainer';
+
+import { PeopleProvider } from './src/context/PeopleContext';
 
 const App = () => {
   return (
-    <Navigation/>
-    // <ScanID/>
-  )
-}
+    <PeopleProvider>
+      <Navigation />
+    </PeopleProvider>
+  );
+};
 
-export default App
+export default App;

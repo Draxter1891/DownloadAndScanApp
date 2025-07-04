@@ -5,6 +5,7 @@ import {
   FlatList,
   Platform,
   PermissionsAndroid,
+  ToastAndroid,
 } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -16,6 +17,7 @@ import {
 import { downloadAndParseFile } from '../utils/fileUtils';
 import CustomModal from '../components/CustomModal';
 import { LoaderKitView } from 'react-native-loader-kit';
+import { usePeople } from '../context/PeopleContext';
 
 type Data = {
   name: string;
@@ -27,55 +29,24 @@ const FILE_URL =
 
 const Dwnld = () => {
   const [pressed, setPressed] = useState(false);
-  const [data, setData] = useState<Data[]>([]);
+  const { people, setPeople, clearPeople } = usePeople();
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [hasPermission, setHasPermission] = useState(false);
-
-
 
   const handleDownload = async () => {
-  // Ask for permission only when button is pressed
-  if (Platform.OS === 'android') {
-    let granted;
+    setLoading(true);
     try {
-      if (Platform.Version >= 33) {
-        granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
-        );
-      } else {
-        granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
-        );
-      }
-
-      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        setErrorMessage('Storage permission denied.');
-        setVisible(true);
-        return;
-      }
-    } catch (err) {
-      console.warn('Permission error:', err);
-      setErrorMessage('Permission request failed.');
+      const result = await downloadAndParseFile(FILE_URL);
+      setPeople(result);
+      ToastAndroid.show('✅ Data downloaded & saved', ToastAndroid.SHORT);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Something went wrong.');
       setVisible(true);
-      return;
+    } finally {
+      setLoading(false);
     }
-  }
-
-  // Proceed with download if permission granted or iOS
-  setLoading(true);
-  try {
-    const result = await downloadAndParseFile(FILE_URL);
-    setData(result);
-  } catch (err: any) {
-    setErrorMessage(err?.message || 'Something went wrong.');
-    setVisible(true);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <PaperProvider>
@@ -83,7 +54,9 @@ const Dwnld = () => {
         <Text variant="headlineMedium" style={styles.heading}>
           Download Page
         </Text>
+    <View style={{flexDirection:'row', justifyContent:'space-evenly'}}>
 
+    
         <Button
           mode="contained-tonal"
           onPressIn={() => setPressed(true)}
@@ -97,9 +70,23 @@ const Dwnld = () => {
           ]}
           onPress={handleDownload}
         >
-          <Text style={{color:'#9265CE',fontWeight:'bold'}}>Download</Text>
+          <Text style={{ color: '#9265CE', fontWeight: 'bold' }}>
+            {people.length > 0 ? 'Redownload' : 'Download'}
+          </Text>
         </Button>
-
+        <Button
+          mode="contained"
+          style={[styles.btn, { backgroundColor: '#FF6F61' }]}
+          onPress={() => {
+            clearPeople();
+            ToastAndroid.show('❌ All data cleared', ToastAndroid.SHORT);
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+            Clear All Data
+          </Text>
+        </Button>
+        </View>
         {loading ? (
           <View style={styles.loader}>
             <LoaderKitView
@@ -111,7 +98,7 @@ const Dwnld = () => {
           </View>
         ) : (
           <FlatList
-            data={data}
+            data={people}
             keyExtractor={(_, index) => index.toString()}
             renderItem={({ item }) => (
               <Card style={styles.card}>
@@ -148,12 +135,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor:'#0F0D11'
+    backgroundColor: '#0F0D11',
   },
   heading: {
     marginBottom: 20,
     color: '#fff',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   btn: {
     backgroundColor: '#EFC3F9',
@@ -166,19 +153,19 @@ const styles = StyleSheet.create({
     width: '100%',
     shadowColor: '#fff',
     elevation: 2,
-    shadowOffset:{width:0,height:2},
-    shadowRadius:2,
-    shadowOpacity:0.7
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 2,
+    shadowOpacity: 0.7,
   },
   empty: {
     textAlign: 'center',
     marginTop: 20,
     fontWeight: 'bold',
-    color: '#fff'
+    color: '#fff',
   },
   loader: {
-    height:'50%',
-    justifyContent:'center',
+    height: '50%',
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: 30,
   },
